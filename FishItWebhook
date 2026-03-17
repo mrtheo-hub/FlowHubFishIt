@@ -1,0 +1,174 @@
+-- [[ FLOW HUB | FISH IT UTILITY V1.0.0 ALPHA ]]
+-- Owner: Dapz | Developers: Theo & Mon
+-- UI: Orion Library
+
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Window = OrionLib:MakeWindow({
+    Name = "Flow Hub | Fish It v1.0.0 Alpha", 
+    HidePremium = true, 
+    SaveConfig = true, 
+    ConfigFolder = "FlowHubFishIt"
+})
+
+-- [[ VARIABLES ]]
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+local request = (syn and syn.request) or (http and http.request) or http_request or request or HttpService.RequestAsync
+
+getgenv().FlowConfig = {
+    WebhookURL = "",
+    WebhookFilters = {Common = false, Uncommon = false, Rare = true, Epic = true, Legendary = true, Secret = true}
+}
+
+local Islands = {
+    ["Pulau Nelayan"] = Vector3.new(-34, 14, 256),
+    ["Pulau Aquarist"] = Vector3.new(-2032, 13, -833),
+    ["Pulau Crystaliz"] = Vector3.new(214, 14, -2706),
+    ["Gua Crystaliz"] = Vector3.new(171, -142, -4938),
+    ["Megalodon Zone"] = Vector3.new(3125, 9, -1713)
+}
+
+-- [[ FUNCTIONS ]]
+local function SendWebhook(data)
+    if getgenv().FlowConfig.WebhookURL ~= "" then
+        pcall(function()
+            request({
+                Url = getgenv().FlowConfig.WebhookURL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+    end
+end
+
+-- [[ UI TABS ]]
+local MainTab = Window:MakeTab({Name = "Home", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local PlayerTab = Window:MakeTab({Name = "Player", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local TeleportTab = Window:MakeTab({Name = "Teleport", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local WebhookTab = Window:MakeTab({Name = "Webhook", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local PerformanceTab = Window:MakeTab({Name = "Performance", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+
+-- [HOME TAB]
+MainTab:AddSection({Name = "Project Flow Hub"})
+MainTab:AddLabel("Version: 1.0.0 Alpha")
+MainTab:AddLabel("Owner: Dapz")
+MainTab:AddLabel("Developers: Theo & Mon")
+MainTab:AddButton({
+    Name = "Copy Discord Link",
+    Callback = function()
+        setclipboard("https://discord.gg/wVr9r3tCmT")
+        OrionLib:MakeNotification({Name = "System", Content = "Link copied!", Time = 2})
+    end    
+})
+
+-- [PLAYER TAB]
+PlayerTab:AddSlider({
+    Name = "Walkspeed",
+    Min = 16,
+    Max = 100,
+    Default = 16,
+    Increment = 1,
+    Callback = function(v) LocalPlayer.Character.Humanoid.WalkSpeed = v end    
+})
+
+-- [TELEPORT TAB]
+TeleportTab:AddSection({Name = "Island Navigation (Safe)"})
+for Name, Pos in pairs(Islands) do
+    TeleportTab:AddButton({
+        Name = "Teleport to " .. Name,
+        Callback = function()
+            if LocalPlayer.Character then
+                LocalPlayer.Character:PivotTo(CFrame.new(Pos + Vector3.new(0, 5, 0)))
+                OrionLib:MakeNotification({Name = "Teleport", Content = "Moved to " .. Name, Time = 2})
+            end
+        end
+    })
+end
+
+-- [WEBHOOK TAB]
+WebhookTab:AddTextbox({
+    Name = "Discord Webhook URL",
+    Default = "",
+    TextDisappear = false,
+    Callback = function(v) getgenv().FlowConfig.WebhookURL = v end	  
+})
+
+WebhookTab:AddButton({
+    Name = "Send Test Log",
+    Callback = function()
+        SendWebhook({["embeds"] = {{["title"] = "✅ Flow Hub Webhook Test", ["description"] = "v1.0.0 Alpha Connected!", ["color"] = 0x00B4D8}}})
+    end
+})
+
+WebhookTab:AddSection({Name = "Rarity Filter Log"})
+for Rar, State in pairs(getgenv().FlowConfig.WebhookFilters) do
+    WebhookTab:AddToggle({
+        Name = "Notify " .. Rar,
+        Default = State,
+        Callback = function(v) getgenv().FlowConfig.WebhookFilters[Rar] = v end
+    })
+end
+
+-- [PERFORMANCE TAB]
+PerformanceTab:AddButton({
+    Name = "Extreme FPS Booster (Cloudphone Mode)",
+    Callback = function()
+        Lighting.GlobalShadows = false
+        settings().Rendering.QualityLevel = 1
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("BasePart") or v:IsA("MeshPart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.CastShadow = false
+                if v:IsA("MeshPart") then v.TextureID = "" end
+            elseif v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v:Destroy()
+            elseif v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("PostEffect") then
+                v:Destroy()
+            end
+        end
+        OrionLib:MakeNotification({Name = "Performance", Content = "Graphics fully stripped for FPS!", Time = 3})
+    end
+})
+
+-- [[ CORE LOGIC ]]
+
+-- Player Logs
+Players.PlayerAdded:Connect(function(plr)
+    SendWebhook({["embeds"] = {{["title"] = "📥 Player Joined", ["description"] = "**" .. plr.Name .. "** entered the server.", ["color"] = 0x00FF00}}})
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    SendWebhook({["embeds"] = {{["title"] = "📤 Player Left", ["description"] = "**" .. plr.Name .. "** left the server.", ["color"] = 0xFF0000}}})
+end)
+
+-- Fishing Hook
+LocalPlayer.Backpack.ChildAdded:Connect(function(item)
+    if item:IsA("Tool") and not item.Name:lower():find("rod") then
+        task.wait(0.5)
+        local rarity = item:GetAttribute("Rarity") or "Common"
+        
+        if getgenv().FlowConfig.WebhookFilters[rarity] then
+            local imageId = item.TextureId:match("%d+") or "0"
+            local thumbUrl = "https://www.roblox.com/asset-thumbnail/image?assetId=" .. imageId .. "&width=420&height=420&format=png"
+            
+            SendWebhook({
+                ["embeds"] = {{
+                    ["title"] = "🎣 New Catch: " .. item.Name,
+                    ["color"] = (rarity == "Legendary" and 0xFFD700 or 0x00B4D8),
+                    ["thumbnail"] = {["url"] = thumbUrl},
+                    ["fields"] = {
+                        {["name"] = "Rarity", ["value"] = "```" .. rarity .. "```", ["inline"] = true},
+                        {["name"] = "Player", ["value"] = "```" .. LocalPlayer.Name .. "```", ["inline"] = true}
+                    },
+                    ["footer"] = {["text"] = "Flow Hub v1.0.0 Alpha | " .. os.date("%X")}
+                }}
+            })
+        end
+    end
+end)
+
+OrionLib:Init()
