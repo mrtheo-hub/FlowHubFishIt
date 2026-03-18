@@ -1,13 +1,40 @@
 -- [[ FLOW HUB | FISHING SYSTEM ]]
--- Version: Alpha 1.0.0
--- Owner: Theo | Developer: Mon
+-- Version: Alpha 1.0.1
+-- Owner: Dapz | Developer: Theo & Mon
 
-local execName = "Unknown Executor"
-if type(identifyexecutor) == "function" then
-    pcall(function() execName = identifyexecutor() end)
+-- [ 1. SAFE EXECUTOR CHECK ]
+local execName = "Unknown"
+pcall(function() 
+    if type(identifyexecutor) == "function" then execName = identifyexecutor() end 
+end)
+
+-- [ 2. SAFE UI LOADER (ANTI NIL VALUE CRASH) ]
+local success, ui_script = pcall(function()
+    return game:HttpGet('https://raw.githubusercontent.com/shlexsoftware/Orion/main/source')
+end)
+
+if not success or not ui_script then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "FLOW HUB ERROR",
+        Text = "Gagal konek ke GitHub. Cek sinyal atau re-execute bro.",
+        Duration = 7
+    })
+    return
 end
 
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexsoftware/Orion/main/source')))()
+local ui_func = loadstring(ui_script)
+if type(ui_func) ~= "function" then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "FLOW HUB ERROR",
+        Text = "Ronix lu gagal nge-parse loadstring UI. Coba relog game.",
+        Duration = 7
+    })
+    return -- Nge-stop eksekusi di sini biar ga crash "call a nil value"
+end
+
+local OrionLib = ui_func()
+
+-- [ 3. SERVICES & CORE ]
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
@@ -16,7 +43,6 @@ local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- API Request Super Aman untuk mencegah error di executor Android
 local requestFunc = (type(syn) == "table" and type(syn.request) == "function" and syn.request) or
                     (type(http) == "table" and type(http.request) == "function" and http.request) or
                     (type(http_request) == "function" and http_request) or
@@ -30,7 +56,7 @@ getgenv().FlowConfig = {
 
 -- [ UI INITIALIZATION ]
 local Window = OrionLib:MakeWindow({
-    Name = "Flow Hub [Alpha 1.0.0] | Exec: " .. execName, 
+    Name = "Flow Hub [Alpha 1.0.1] | Exec: " .. execName, 
     HidePremium = false, 
     SaveConfig = true, 
     ConfigFolder = "FlowHubAlpha"
@@ -48,8 +74,8 @@ local PerfTab = Window:MakeTab({Name = "Performance", Icon = "rbxassetid://44833
 
 -- [[ MAIN TAB ]]
 MainTab:AddLabel("© 2026 Flow Hub - All Rights Reserved.")
-MainTab:AddLabel("Owner: Theo")
-MainTab:AddLabel("Developer: Mon")
+MainTab:AddLabel("Owner: Dapz")
+MainTab:AddLabel("Developer: Theo & Mon")
 MainTab:AddButton({
     Name = "Join Our Discord",
     Callback = function()
@@ -60,10 +86,10 @@ MainTab:AddButton({
 
 -- [[ INFO TAB ]]
 InfoTab:AddLabel("=== CHANGELOG ===")
-InfoTab:AddLabel("[+] Alpha 1.0.0 Initialization")
-InfoTab:AddLabel("[+] Re-structured Webhook Catch Logic")
-InfoTab:AddLabel("[+] Fixed nil value errors on Android")
-InfoTab:AddLabel("[+] Updated UI credits & layout")
+InfoTab:AddLabel("[+] Alpha 1.0.1 Update")
+InfoTab:AddLabel("[+] Added Safe UI Loader for Android")
+InfoTab:AddLabel("[+] Bypassed nil value crash on Ronix")
+InfoTab:AddLabel("[+] Fixed webhook rarity delays")
 
 -- [[ WEBHOOK SYSTEM ]]
 local function sendWebhook(data)
@@ -105,3 +131,7 @@ Players.PlayerAdded:Connect(function(p)
             ["fields"] = {
                 {["name"] = "Player", ["value"] = "```"..p.Name.."```", ["inline"] = true},
                 {["name"] = "Total Server Players", ["value"] = "
+http://googleusercontent.com/immersive_entry_chip/0
+http://googleusercontent.com/immersive_entry_chip/1
+
+Coba *execute* ulang. Kalau misal muncul notif Roblox pop-up "FLOW HUB ERROR" di kanan bawah layar, berarti emang executor Ronix lagi di-blok internetnya ke arah GitHub. Udah bisa nge-*load* UInya sekarang?
