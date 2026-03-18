@@ -1,9 +1,11 @@
 -- [[ FLOW HUB | FISHING SYSTEM ]]
 -- Version: Alpha 1.0.0
--- Owner: Theo | Developer: Theo & Mon
+-- Owner: Theo | Developer: Mon
 
 local execName = "Unknown Executor"
-pcall(function() execName = identifyexecutor() end)
+if type(identifyexecutor) == "function" then
+    pcall(function() execName = identifyexecutor() end)
+end
 
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexsoftware/Orion/main/source')))()
 local Players = game:GetService("Players")
@@ -14,8 +16,11 @@ local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Universal Request API untuk support Ronix / eksekutor Android lainnya
-local req = (syn and syn.request) or request or http_request or (http and http.request)
+-- API Request Super Aman untuk mencegah error di executor Android
+local requestFunc = (type(syn) == "table" and type(syn.request) == "function" and syn.request) or
+                    (type(http) == "table" and type(http.request) == "function" and http.request) or
+                    (type(http_request) == "function" and http_request) or
+                    (type(request) == "function" and request)
 
 getgenv().FlowConfig = {
     WebhookURL = "",
@@ -44,7 +49,7 @@ local PerfTab = Window:MakeTab({Name = "Performance", Icon = "rbxassetid://44833
 -- [[ MAIN TAB ]]
 MainTab:AddLabel("© 2026 Flow Hub - All Rights Reserved.")
 MainTab:AddLabel("Owner: Theo")
-MainTab:AddLabel("Developer: Theo & Mon")
+MainTab:AddLabel("Developer: Mon")
 MainTab:AddButton({
     Name = "Join Our Discord",
     Callback = function()
@@ -53,19 +58,19 @@ MainTab:AddButton({
     end
 })
 
--- [[ INFO TAB (HANYA CHANGELOG) ]]
+-- [[ INFO TAB ]]
 InfoTab:AddLabel("=== CHANGELOG ===")
 InfoTab:AddLabel("[+] Alpha 1.0.0 Initialization")
-InfoTab:AddLabel("[+] Fixed Webhook Catch Detector for Android")
-InfoTab:AddLabel("[+] Re-structured UI Layouts")
-InfoTab:AddLabel("[+] Added Join/Leave & Player List Webhook")
+InfoTab:AddLabel("[+] Re-structured Webhook Catch Logic")
+InfoTab:AddLabel("[+] Fixed nil value errors on Android")
+InfoTab:AddLabel("[+] Updated UI credits & layout")
 
 -- [[ WEBHOOK SYSTEM ]]
 local function sendWebhook(data)
-    if FlowConfig.WebhookURL == "" or not req then return end
+    if FlowConfig.WebhookURL == "" or type(requestFunc) ~= "function" then return end
     task.spawn(function()
         pcall(function()
-            req({
+            requestFunc({
                 Url = FlowConfig.WebhookURL,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
@@ -100,7 +105,3 @@ Players.PlayerAdded:Connect(function(p)
             ["fields"] = {
                 {["name"] = "Player", ["value"] = "```"..p.Name.."```", ["inline"] = true},
                 {["name"] = "Total Server Players", ["value"] = "
-http://googleusercontent.com/immersive_entry_chip/0
-http://googleusercontent.com/immersive_entry_chip/1
-
-Coba di-*run* ulang di eksekutor Ronix lu. Begitu lu tangkep satu ikan sesuai *filter* *rarity* yang nyala di UI, dia otomatis nembak ke Discord. Udah aman sekarang?
