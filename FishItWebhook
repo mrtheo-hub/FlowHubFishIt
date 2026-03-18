@@ -1,6 +1,9 @@
 -- [[ FLOW HUB | FISHING SYSTEM ]]
 -- Version: Alpha 1.0.0
--- Developer: Theo & Mon | Owner: Dapz
+-- Owner: Theo | Developer: Theo & Mon
+
+local execName = "Unknown Executor"
+pcall(function() execName = identifyexecutor() end)
 
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexsoftware/Orion/main/source')))()
 local Players = game:GetService("Players")
@@ -11,8 +14,8 @@ local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local request = (syn and syn.request) or (http and http.request) or http_request or request or HttpService.RequestAsync
-local execName = (identifyexecutor and identifyexecutor()) or "Unknown Executor"
+-- Universal Request API untuk support Ronix / eksekutor Android lainnya
+local req = (syn and syn.request) or request or http_request or (http and http.request)
 
 getgenv().FlowConfig = {
     WebhookURL = "",
@@ -25,7 +28,7 @@ local Window = OrionLib:MakeWindow({
     Name = "Flow Hub [Alpha 1.0.0] | Exec: " .. execName, 
     HidePremium = false, 
     SaveConfig = true, 
-    ConfigFolder = "FlowHubFull"
+    ConfigFolder = "FlowHubAlpha"
 })
 
 -- [[ TABS ]]
@@ -40,24 +43,38 @@ local PerfTab = Window:MakeTab({Name = "Performance", Icon = "rbxassetid://44833
 
 -- [[ MAIN TAB ]]
 MainTab:AddLabel("© 2026 Flow Hub - All Rights Reserved.")
-MainTab:AddLabel("Owner: Dapz")
+MainTab:AddLabel("Owner: Theo")
 MainTab:AddLabel("Developer: Theo & Mon")
 MainTab:AddButton({
-    Name = "Copy Discord Link",
+    Name = "Join Our Discord",
     Callback = function()
         setclipboard("https://discord.gg/WsK2db3YHN")
         OrionLib:MakeNotification({Name = "Discord", Content = "Link copied to clipboard!", Time = 3})
     end
 })
 
--- [[ INFO TAB ]]
+-- [[ INFO TAB (HANYA CHANGELOG) ]]
 InfoTab:AddLabel("=== CHANGELOG ===")
 InfoTab:AddLabel("[+] Alpha 1.0.0 Initialization")
-InfoTab:AddLabel("[+] Full features unlocked for Cloudphone")
-InfoTab:AddLabel("[+] Advanced Webhook Tracking added")
-InfoTab:AddLabel("[+] Orion UI Port Completed")
+InfoTab:AddLabel("[+] Fixed Webhook Catch Detector for Android")
+InfoTab:AddLabel("[+] Re-structured UI Layouts")
+InfoTab:AddLabel("[+] Added Join/Leave & Player List Webhook")
 
--- [[ WEBHOOK LOGIC & TAB ]]
+-- [[ WEBHOOK SYSTEM ]]
+local function sendWebhook(data)
+    if FlowConfig.WebhookURL == "" or not req then return end
+    task.spawn(function()
+        pcall(function()
+            req({
+                Url = FlowConfig.WebhookURL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+    end)
+end
+
 local function getActiveRarities()
     local active = {}
     for k, v in pairs(FlowConfig.Filters) do if v then table.insert(active, k) end end
@@ -75,16 +92,15 @@ local function getServerPlayersData()
     return pData
 end
 
-local function SendWebhookLog(typeStr, pName)
-    if FlowConfig.WebhookURL == "" then return end
-    local color = (typeStr == "Joined") and 0x00FF00 or 0xFF0000
-    local data = {
+Players.PlayerAdded:Connect(function(p)
+    sendWebhook({
         ["embeds"] = {{
-            ["title"] = (typeStr == "Joined") and "📥 Player Joined" or "📤 Player Left",
-            ["color"] = color,
+            ["title"] = "📥 Player Joined",
+            ["color"] = 0x00FF00,
             ["fields"] = {
-                {["name"] = "Player", ["value"] = "```"..pName.."```", ["inline"] = true},
+                {["name"] = "Player", ["value"] = "```"..p.Name.."```", ["inline"] = true},
                 {["name"] = "Total Server Players", ["value"] = "
 http://googleusercontent.com/immersive_entry_chip/0
+http://googleusercontent.com/immersive_entry_chip/1
 
-Kalo URL Webhook udah lu masukin terus lu pencet **Enter** di dalam kolom text-nya, dia bakal langsung nembak Embed Notif *Connected* ke *channel* lengkap sama *list player* yang lagi nyangkut di server. Ada yang masih luasa kurang atau *bug* lain waktu *execute*?
+Coba di-*run* ulang di eksekutor Ronix lu. Begitu lu tangkep satu ikan sesuai *filter* *rarity* yang nyala di UI, dia otomatis nembak ke Discord. Udah aman sekarang?
