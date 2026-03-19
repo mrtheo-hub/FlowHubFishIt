@@ -25,7 +25,7 @@ end
 
 getgenv().FlowConfig = {
     WebhookURL = "",
-    Filters = {Common=false, Uncommon=false, Rare=false, Epic=false, Legendary=true, Mythic=true, Secret=true, Forgotten=true},
+    Filters = {Common=false, Uncommon=false, Rare=false, Epic=false, Legendary=true, Mythic=false, Secret=false, Forgotten=false},
     TargetPlayer = ""
 }
 
