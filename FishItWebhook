@@ -1,5 +1,5 @@
 -- [[ FLOW HUB | FISHING SYSTEM ]]
--- Version: Alpha 1.0.0
+-- Version: Alpha 1.0.0 (Hotfix 2)
 -- Owner: Theo | Developer: Theo & Mon
 
 local success, WindUI = pcall(function()
@@ -12,42 +12,22 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local Market = game:GetService("MarketplaceService")
 local requestFunc = (type(syn) == "table" and syn.request) or (type(http) == "table" and http.request) or http_request or request
 
 getgenv().FlowConfig = {
     WebhookURL = "",
     Filters = {Common=false, Uncommon=false, Rare=false, Epic=false, Legendary=true, Mythic=true, Secret=true, Forgotten=true},
-    FPSBooster = false
+    FPSBooster = false,
+    LastUpdateDate = Market:GetProductInfo(game.PlaceId).Updated,
+    MyDiscordID = "935855938403975228"
 }
 
--- [ KOORDINAT MAP ]
-local Islands = {
-    ["Fisherman Island"] = Vector3.new(93.15, 9.53, 2684.58),
-    ["Kohana"] = Vector3.new(-602.72, 2.45, 547.14),
-    ["Kohana Volcano"] = Vector3.new(-567.14, 42.07, 88.03),
-    ["Ancient Jungle"] = Vector3.new(1467.85, 7.60, -327.60),
-    ["Ancient Ruin"] = Vector3.new(6045.40, -588.60, 4608.94),
-    ["Coral Reefs"] = Vector3.new(-2922.90, 3.25, 2083.15),
-    ["Crater Island"] = Vector3.new(951.65, 2.46, 5118.27),
-    ["Crystal Depth"] = Vector3.new(5716.35, -894.99, 15321.80),
-    ["Esoteric Island"] = Vector3.new(3210.00, -1302.86, 1406.37),
-    ["Lava Basin"] = Vector3.new(900.94, 86.90, -10202.57),
-    ["Leviathan Den"] = Vector3.new(3534.88, -288.22, 3484.65),
-    ["Lost Isle"] = Vector3.new(-3701.15, 5.53, -1058.91),
-    ["Pirate Cove"] = Vector3.new(3408.50, 4.19, 3495.51),
-    ["Pirate Treasure Room"] = Vector3.new(3307.59, -302.14, 3027.88),
-    ["Planetary Observatory"] = Vector3.new(390.90, 7.25, 2205.07),
-    ["Sacred Temple"] = Vector3.new(1484.54, -21.90, -641.69),
-    ["Sisyphus Statue"] = Vector3.new(-3737.76, -135.07, -1009.77),
-    ["Treasure Room"] = Vector3.new(-3621.87, -279.07, -1591.27),
-    ["Tropical Grove"] = Vector3.new(-2110.36, 6.22, 3724.23),
-    ["Underground Cellar"] = Vector3.new(2157.54, -912.98, -721.03),
-    ["Underground City"] = Vector3.new(-3067.56, -638.89, -10436.91),
-    ["Vulcanic Cavern"] = Vector3.new(1184.60, 79.86, -10249.51),
-    ["Weather Machine"] = Vector3.new(-1527.10, 2.87, 1917.09)
-}
+-- [ KOORDINAT MAP TETAP SAMA ]
+local Islands = { ["Fisherman Island"] = Vector3.new(93.15, 9.53, 2684.58), ["Kohana"] = Vector3.new(-602.72, 2.45, 547.14), ["Kohana Volcano"] = Vector3.new(-567.14, 42.07, 88.03), ["Ancient Jungle"] = Vector3.new(1467.85, 7.60, -327.60), ["Ancient Ruin"] = Vector3.new(6045.40, -588.60, 4608.94), ["Coral Reefs"] = Vector3.new(-2922.90, 3.25, 2083.15), ["Crater Island"] = Vector3.new(951.65, 2.46, 5118.27), ["Crystal Depth"] = Vector3.new(5716.35, -894.99, 15321.80), ["Esoteric Island"] = Vector3.new(3210.00, -1302.86, 1406.37), ["Lava Basin"] = Vector3.new(900.94, 86.90, -10202.57), ["Leviathan Den"] = Vector3.new(3534.88, -288.22, 3484.65), ["Lost Isle"] = Vector3.new(-3701.15, 5.53, -1058.91), ["Pirate Cove"] = Vector3.new(3408.50, 4.19, 3495.51), ["Pirate Treasure Room"] = Vector3.new(3307.59, -302.14, 3027.88), ["Planetary Observatory"] = Vector3.new(390.90, 7.25, 2205.07), ["Sacred Temple"] = Vector3.new(1484.54, -21.90, -641.69), ["Sisyphus Statue"] = Vector3.new(-3737.76, -135.07, -1009.77), ["Treasure Room"] = Vector3.new(-3621.87, -279.07, -1591.27), ["Tropical Grove"] = Vector3.new(-2110.36, 6.22, 3724.23), ["Underground Cellar"] = Vector3.new(2157.54, -912.98, -721.03), ["Underground City"] = Vector3.new(-3067.56, -638.89, -10436.91), ["Vulcanic Cavern"] = Vector3.new(1184.60, 79.86, -10249.51), ["Weather Machine"] = Vector3.new(-1527.10, 2.87, 1917.09) }
 
--- [ WEBHOOK HELPERS ]
+-- [ WEBHOOK ENGINE ]
 local function sendWebhook(data)
     if getgenv().FlowConfig.WebhookURL == "" or not requestFunc then return end
     task.spawn(function()
@@ -62,39 +42,46 @@ local function sendWebhook(data)
     end)
 end
 
-local function getServerStats()
-    local list = ""
-    for _, p in pairs(Players:GetPlayers()) do
-        local stats = p:FindFirstChild("leaderstats")
-        local caught = stats and stats:FindFirstChild("Caught") and stats.Caught.Value or 0
-        local rarest = stats and stats:FindFirstChild("Rarest") and stats.Rarest.Value or "None"
-        list = list .. "👤 **" .. p.Name .. "** | Rarest: `" .. rarest .. "` | Total: `" .. caught .. "`\n"
-    end
-    return list
+-- [ UPDATE DETECTOR ENGINE ]
+local function checkGameUpdate()
+    task.spawn(function()
+        while task.wait(300) do -- Cek tiap 5 menit
+            local pInfo = Market:GetProductInfo(game.PlaceId)
+            if pInfo.Updated ~= getgenv().FlowConfig.LastUpdateDate then
+                getgenv().FlowConfig.LastUpdateDate = pInfo.Updated
+                sendWebhook({
+                    ["content"] = "@everyone | <@" .. getgenv().FlowConfig.MyDiscordID .. ">",
+                    ["embeds"] = {{
+                        ["title"] = "🚨 FISH IT UPDATE DETECTED!",
+                        ["description"] = "Game has been updated or restarted!\n**Time:** `" .. pInfo.Updated .. "`\n**Action:** Check code shifts immediately.",
+                        ["color"] = 0xFF0000
+                    }}
+                })
+            end
+        end
+    end)
 end
+checkGameUpdate()
 
--- [ FPS BOOSTER PERMANENT ]
-local function cleanPart(v)
+-- [ FPS BOOSTER ULTRA ]
+local function ultraOptimization(v)
     if v:IsA("BasePart") then
         v.Material = Enum.Material.SmoothPlastic
         v.CastShadow = false
-        v.Reflectance = 0
-    elseif v:IsA("Texture") or v:IsA("Decal") or v:IsA("ParticleEmitter") or v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("Trail") then
+        if v.Transparency < 1 then v.Transparency = 0 end
+    elseif v:IsA("MeshPart") then
+        v.MeshId = ""
+    elseif v:IsA("Texture") or v:IsA("Decal") or v:IsA("ParticleEmitter") then
         v:Destroy()
     end
 end
 
-workspace.DescendantAdded:Connect(function(v)
-    if getgenv().FlowConfig.FPSBooster then cleanPart(v) end
-end)
-
 -- [ UI WINDOW ]
 local Window = WindUI:CreateWindow({
-    Title = "Flow Hub [Alpha 1.0.0] | Exec: " .. (identifyexecutor and identifyexecutor() or "Unknown"),
+    Title = "Flow Hub [Alpha 1.0.0] | Update Ready",
     Icon = "solar:waterdrop-bold",
     Size = UDim2.fromOffset(580, 440),
-    Transparent = true,
-    Theme = "Dark"
+    Transparent = true, Theme = "Dark"
 })
 
 local Tabs = {
@@ -106,111 +93,79 @@ local Tabs = {
 }
 
 Tabs.Main:Section({ Title = "Owner: Theo | Dev: Theo & Mon" })
-Tabs.Main:Button({ Title = "Copy Discord", Callback = function() setclipboard("https://discord.gg/WsK2db3YHN") end })
+Tabs.Info:Section({ Title = "GAME STATUS" })
+local lastUpdLabel = Tabs.Info:Section({ Title = "Last Update: " .. getgenv().FlowConfig.LastUpdateDate })
 
-Tabs.Info:Section({ Title = "CHANGELOG" })
-Tabs.Info:Section({ Title = "[Fixed] Webhook Catch Logs" })
-Tabs.Info:Section({ Title = "[Fixed] Permanent FPS Booster" })
-Tabs.Info:Section({ Title = "[Added] Webhook Holder Leave Alert" })
-
--- [[ TELEPORT ]]
-local function getPlrs()
-    local t = {}
-    for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(t, p.Name) end end
-    return t
-end
-
-local PlayerDrop = Tabs.Teleport:Dropdown({ Title = "Select Target Player", Values = getPlrs(), Search = true, Callback = function(v) getgenv().FlowConfig.TargetPlayer = v end })
-Tabs.Teleport:Button({ Title = "Refresh Player List", Callback = function() PlayerDrop:SetValues(getPlrs()) end })
-Tabs.Teleport:Button({ Title = "Teleport To Player", Callback = function()
-    local p = Players:FindFirstChild(getgenv().FlowConfig.TargetPlayer)
-    if p and p.Character then LocalPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame end
-end})
-
-local islandNames = {} for n,_ in pairs(Islands) do table.insert(islandNames, n) end table.sort(islandNames)
-Tabs.Teleport:Dropdown({ Title = "Select Location", Values = islandNames, Search = true, Callback = function(v)
-    if Islands[v] then LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Islands[v] + Vector3.new(0, 5, 0)) end
-end})
+-- [[ PERFORMANCE ]]
+Tabs.Performance:Toggle({
+    Title = "Super Extreme FPS Booster (Global LOD)",
+    Default = false,
+    Callback = function(v)
+        getgenv().FlowConfig.FPSBooster = v
+        if v then
+            settings().Rendering.QualityLevel = 1
+            for _, x in ipairs(workspace:GetDescendants()) do ultraOptimization(x) end
+        end
+    end
+})
+workspace.DescendantAdded:Connect(function(v) if getgenv().FlowConfig.FPSBooster then ultraOptimization(v) end end)
 
 -- [[ WEBHOOK ]]
-Tabs.Webhook:Input({ Title = "Webhook URL", Callback = function(v)
-    getgenv().FlowConfig.WebhookURL = v
-    if v:match("https://") then
-        sendWebhook({ ["embeds"] = {{ ["title"] = "✅ Webhook Connected", ["description"] = "**Holder:** `" .. LocalPlayer.Name .. "`\n\n**🌐 Players Stats:**\n" .. getServerStats(), ["color"] = 0x00FF00 }} })
-    end
-end})
-
+Tabs.Webhook:Input({ Title = "Webhook URL", Callback = function(v) getgenv().FlowConfig.WebhookURL = v end })
 local rarities = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Forgotten"}
 for _, rar in ipairs(rarities) do
     Tabs.Webhook:Toggle({ Title = "Log " .. rar, Default = getgenv().FlowConfig.Filters[rar], Callback = function(v) getgenv().FlowConfig.Filters[rar] = v end })
 end
 
--- [[ PERFORMANCE ]]
-Tabs.Performance:Toggle({
-    Title = "Super Extreme FPS Booster (Permanent)",
-    Default = false,
-    Callback = function(v)
-        getgenv().FlowConfig.FPSBooster = v
-        if v then
-            for _, x in ipairs(workspace:GetDescendants()) do cleanPart(x) end
-            Lighting.GlobalShadows = false
-            settings().Rendering.QualityLevel = 1
-        end
-    end
-})
-
--- [[ SERVER MONITORING ]]
-Players.PlayerAdded:Connect(function(p)
-    sendWebhook({["embeds"] = {{["title"] = "📥 Join", ["description"] = "**" .. p.Name .. "** entered.", ["color"] = 0x55FF55}}})
-end)
-
-Players.PlayerRemoving:Connect(function(p)
-    if p == LocalPlayer then
-        sendWebhook({["content"] = "@everyone", ["embeds"] = {{["title"] = "⚠️ Webhook Holder Left", ["description"] = "**" .. p.Name .. "** (Holder) has left the server.", ["color"] = 0xFF0000}}})
-    else
-        sendWebhook({["embeds"] = {{["title"] = "📤 Leave", ["description"] = "**" .. p.Name .. "** left.", ["color"] = 0xFF5555}}})
-    end
-end)
-
+-- [[ CATCH MONITORING ENGINE (V2) ]]
 local function monitorPlayer(p)
-    local function checkItem(item)
-        if not item:IsA("Tool") or item:GetAttribute("FlowLogged") then return end
-        task.wait(1)
+    local function processCatch(item)
+        if not item:IsA("Tool") or item:GetAttribute("FlowProcessed") then return end
         
-        -- Deteksi Rarity (Atribut atau Value)
-        local rar = item:GetAttribute("Rarity") or (item:FindFirstChild("Rarity") and item.Rarity.Value) or "Common"
-        local rarStr = tostring(rar):sub(1,1):upper() .. tostring(rar):sub(2):lower()
+        -- Brute Force Data Detection
+        task.wait(1.5)
+        local rarity = item:GetAttribute("Rarity") or (item:FindFirstChild("Rarity") and item.Rarity.Value) or (item:FindFirstChild("Data") and item.Data:FindFirstChild("Rarity") and item.Data.Rarity.Value) or "Common"
+        local mutation = item:GetAttribute("Mutation") or (item:FindFirstChild("Mutation") and item.Mutation.Value) or "None"
+        local weight = item:GetAttribute("Weight") or (item:FindFirstChild("Weight") and item.Weight.Value) or 0
+        
+        local rarStr = tostring(rarity):sub(1,1):upper() .. tostring(rarity):sub(2):lower()
         
         if getgenv().FlowConfig.Filters[rarStr] then
-            item:SetAttribute("FlowLogged", true)
-            local mut = item:GetAttribute("Mutation") or (item:FindFirstChild("Mutation") and item.Mutation.Value) or "None"
-            local weight = item:GetAttribute("Weight") or (item:FindFirstChild("Weight") and item.Weight.Value) or 0
-            
+            item:SetAttribute("FlowProcessed", true)
             local ping = nil
-            if (item.Name == "Ruby" and tostring(mut) == "Gemstone") or rarStr == "Forgotten" then ping = "@here" end
+            if (item.Name == "Ruby" and tostring(mutation) == "Gemstone") or rarStr == "Forgotten" then ping = "@here" end
 
             sendWebhook({
                 ["content"] = ping,
                 ["embeds"] = {{
-                    ["title"] = "🎣 Catch: " .. item.Name,
+                    ["title"] = "🎣 CATCH LOGGED: " .. item.Name,
+                    ["color"] = 0x00B4D8,
                     ["fields"] = {
                         {["name"] = "Player", ["value"] = p.Name, ["inline"] = true},
                         {["name"] = "Rarity", ["value"] = rarStr, ["inline"] = true},
-                        {["name"] = "Weight", ["value"] = string.format("%.2f", weight) .. " kg", ["inline"] = true},
-                        {["name"] = "Mutation", ["value"] = tostring(mut), ["inline"] = true},
+                        {["name"] = "Mutation", ["value"] = tostring(mutation), ["inline"] = true},
+                        {["name"] = "Weight", ["value"] = string.format("%.2f", weight) .. "kg", ["inline"] = true},
                         {["name"] = "JobID", ["value"] = game.JobId, ["inline"] = false}
-                    },
-                    ["color"] = 0x00B4D8
+                    }
                 }}
             })
         end
     end
 
-    p.CharacterAdded:Connect(function(c) c.ChildAdded:Connect(checkItem) end)
-    if p.Character then p.Character.ChildAdded:Connect(checkItem) end
-    p.ChildAdded:Connect(function(b) if b:IsA("Backpack") then b.ChildAdded:Connect(checkItem) end end)
-    if p:FindFirstChild("Backpack") then p.Backpack.ChildAdded:Connect(checkItem) end
+    p.CharacterAdded:Connect(function(c) c.ChildAdded:Connect(processCatch) end)
+    p.ChildAdded:Connect(function(b) if b:IsA("Backpack") then b.ChildAdded:Connect(processCatch) end end)
+    if p:FindFirstChild("Backpack") then p.Backpack.ChildAdded:Connect(processCatch) end
 end
 
 for _, p in pairs(Players:GetPlayers()) do monitorPlayer(p) end
 Players.PlayerAdded:Connect(monitorPlayer)
+
+-- [[ EXIT LOGIC ]]
+Players.PlayerRemoving:Connect(function(p)
+    if p == LocalPlayer then
+        -- Holder keluar, log biasa
+        sendWebhook({["embeds"] = {{["title"] = "⚠️ Webhook Holder Left", ["description"] = "**" .. p.Name .. "** has disconnected.", ["color"] = 0xFF9900}}})
+    end
+end)
+
+WindUI:Notify({Title = "Flow Hub", Content = "Script Loaded & Update Detector Active!"})
