@@ -1,30 +1,60 @@
 -- [[ FLOW HUB | FISHING SYSTEM ]]
--- Version: Alpha 1.0.6
--- Owner: Dapz | Developers: Theo & Mon
+-- Version: Alpha 1.0.0
+-- Owner: Theo | Developer: Theo & Mon
 
-local OrionLib
-local success, result = pcall(function()
-    return game:HttpGet('https://raw.githubusercontent.com/shlexsoftware/Orion/main/source')
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 end)
-if success and result then
-    local func = loadstring(result)
-    if type(func) == "function" then OrionLib = func() end
-end
 
-if not OrionLib then return end
+if not success or not WindUI then
+    warn("Flow Hub: Gagal load WindUI, cek koneksi internet!")
+    return
+end
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local requestFunc = (type(syn) == "table" and syn.request) or (type(http) == "table" and http.request) or http_request or request
 
+-- Eksekutor Detector
+local execName = "Unknown"
+if type(identifyexecutor) == "function" then
+    pcall(function() execName = identifyexecutor() end)
+end
+
 getgenv().FlowConfig = {
     WebhookURL = "",
-    Filters = {Common=false, Uncommon=false, Rare=false, Epic=false, Legendary=true, Mythic=true, Secret=true, Forgotten=true},
-    TargetPlayer = ""
+    Filters = {Common=false, Uncommon=false, Rare=false, Epic=false, Legendary=true, Mythic=true, Secret=true, Forgotten=true}
 }
 
--- [ FUNCTION: GET SERVER DATA ]
+-- [ KOORDINAT MAP ]
+local Islands = {
+    ["Fisherman Island"] = Vector3.new(93.15, 9.53, 2684.58),
+    ["Kohana"] = Vector3.new(-602.72, 2.45, 547.14),
+    ["Kohana Volcano"] = Vector3.new(-567.14, 42.07, 88.03),
+    ["Ancient Jungle"] = Vector3.new(1467.85, 7.60, -327.60),
+    ["Ancient Ruin"] = Vector3.new(6045.40, -588.60, 4608.94),
+    ["Coral Reefs"] = Vector3.new(-2922.90, 3.25, 2083.15),
+    ["Crater Island"] = Vector3.new(951.65, 2.46, 5118.27),
+    ["Crystal Depth"] = Vector3.new(5716.35, -894.99, 15321.80),
+    ["Esoteric Island"] = Vector3.new(3210.00, -1302.86, 1406.37),
+    ["Lava Basin"] = Vector3.new(900.94, 86.90, -10202.57),
+    ["Leviathan Den"] = Vector3.new(3534.88, -288.22, 3484.65),
+    ["Lost Isle"] = Vector3.new(-3701.15, 5.53, -1058.91),
+    ["Pirate Cove"] = Vector3.new(3408.50, 4.19, 3495.51),
+    ["Pirate Treasure Room"] = Vector3.new(3307.59, -302.14, 3027.88),
+    ["Planetary Observatory"] = Vector3.new(390.90, 7.25, 2205.07),
+    ["Sacred Temple"] = Vector3.new(1484.54, -21.90, -641.69),
+    ["Sisyphus Statue"] = Vector3.new(-3737.76, -135.07, -1009.77),
+    ["Treasure Room"] = Vector3.new(-3621.87, -279.07, -1591.27),
+    ["Tropical Grove"] = Vector3.new(-2110.36, 6.22, 3724.23),
+    ["Underground Cellar"] = Vector3.new(2157.54, -912.98, -721.03),
+    ["Underground City"] = Vector3.new(-3067.56, -638.89, -10436.91),
+    ["Vulcanic Cavern"] = Vector3.new(1184.60, 79.86, -10249.51),
+    ["Weather Machine"] = Vector3.new(-1527.10, 2.87, 1917.09)
+}
+
+-- [ WEBHOOK LOGIC & HELPERS ]
 local function getActiveFilters()
     local active = {}
     for k, v in pairs(getgenv().FlowConfig.Filters) do if v then table.insert(active, k) end end
@@ -37,12 +67,22 @@ local function getServerStats()
         local stats = p:FindFirstChild("leaderstats")
         local caught = stats and stats:FindFirstChild("Caught") and stats.Caught.Value or 0
         local rarest = stats and stats:FindFirstChild("Rarest") and stats.Rarest.Value or "None"
-        list = list .. "👤 **" .. p.Name .. "**\n> Total: `" .. caught .. "` | Rarest: `" .. rarest .. "`\n"
+        list = list .. "👤 **" .. p.Name .. "**\n> Rarest: `" .. rarest .. "` | Total: `" .. caught .. "`\n"
     end
-    return list == "" and "No players found." or list
+    return list == "" and "No active players." or list
 end
 
--- [ FUNCTION: SEND WEBHOOK ]
+local function getPlayerLocation(p)
+    if not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then return "Unknown Zone" end
+    local rootPos = p.Character.HumanoidRootPart.Position
+    local closest, minDist = "Unknown Zone", math.huge
+    for name, pos in pairs(Islands) do
+        local dist = (rootPos - pos).Magnitude
+        if dist < minDist then minDist = dist; closest = name end
+    end
+    return (minDist < 600) and closest or "Unknown Zone"
+end
+
 local function sendWebhook(data)
     if getgenv().FlowConfig.WebhookURL == "" or not requestFunc then return end
     task.spawn(function()
@@ -57,42 +97,57 @@ local function sendWebhook(data)
     end)
 end
 
-local Window = OrionLib:MakeWindow({
-    Name = "Flow Hub [Alpha 1.0.6]", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    ConfigFolder = "FlowHub106"
+-- [ UI INITIALIZATION ]
+local Window = WindUI:CreateWindow({
+    Title = "Flow Hub [Alpha 1.0.0] | Exec: " .. execName,
+    Icon = "solar:waterdrop-bold",
+    Size = UDim2.fromOffset(580, 420),
+    Transparent = true,
+    Theme = "Dark"
 })
 
--- [[ TAB MAIN ]]
-local MainTab = Window:MakeTab({Name = "Main", Icon = "rbxassetid://4483345998"})
-MainTab:AddLabel("Owner: Dapz")
-MainTab:AddLabel("Developers: Theo & Mon")
-MainTab:AddButton({
-    Name = "Copy Discord Link",
-    Callback = function() setclipboard("https://discord.gg/WsK2db3YHN") end
+local Tabs = {
+    Main = Window:Tab({ Title = "Main", Icon = "solar:home-bold" }),
+    Info = Window:Tab({ Title = "Info", Icon = "solar:info-circle-bold" }),
+    Teleport = Window:Tab({ Title = "Teleport", Icon = "solar:map-point-wave-bold" }),
+    Webhook = Window:Tab({ Title = "Webhook", Icon = "solar:bell-bing-bold" })
+}
+
+-- [[ TAB: MAIN ]]
+Tabs.Main:Section({ Title = "© 2026 Flow Hub" })
+Tabs.Main:Section({ Title = "Owner: Theo" })
+Tabs.Main:Section({ Title = "Developer: Theo & Mon" })
+Tabs.Main:Button({
+    Title = "Copy Discord Link",
+    Icon = "solar:link-bold",
+    Callback = function() 
+        setclipboard("https://discord.gg/WsK2db3YHN") 
+        WindUI:Notify({Title = "Copied", Content = "Discord link copied to clipboard!"})
+    end
 })
 
--- [[ TAB INFO ]]
-local InfoTab = Window:MakeTab({Name = "Info", Icon = "rbxassetid://4483345998"})
-InfoTab:AddLabel("Status: Active Monitoring")
-InfoTab:AddLabel("Monitoring Mode: Server-Wide")
-InfoTab:AddLabel("Detecting: Mutation, Weight, Value, Zone")
+-- [[ TAB: INFO ]]
+Tabs.Info:Section({ Title = "=== CHANGELOG ===" })
+Tabs.Info:Section({ Title = "[+] Alpha 1.0.0 Initialization" })
+Tabs.Info:Section({ Title = "[+] Server-Wide Webhook Monitoring Added" })
+Tabs.Info:Section({ Title = "[+] Special Rarity Pings (@here) Implemented" })
+Tabs.Info:Section({ Title = "[+] Added Full Teleport Locations" })
 
--- [[ TAB TELEPORT ]]
-local TeleportTab = Window:MakeTab({Name = "Teleport", Icon = "rbxassetid://4483345998"})
-TeleportTab:AddTextbox({
-    Name = "Target Player Name",
-    Default = "",
-    Callback = function(Value) getgenv().FlowConfig.TargetPlayer = Value end
+-- [[ TAB: TELEPORT ]]
+Tabs.Teleport:Section({ Title = "Player Teleport" })
+local targetPlayerInput = ""
+Tabs.Teleport:Input({
+    Title = "Target Player Name",
+    Placeholder = "Enter name...",
+    Callback = function(v) targetPlayerInput = v end
 })
 
-TeleportTab:AddButton({
-    Name = "Teleport to Player",
+Tabs.Teleport:Button({
+    Title = "Teleport To Player",
     Callback = function()
-        local target = getgenv().FlowConfig.TargetPlayer
+        if targetPlayerInput == "" then return end
         for _, p in pairs(Players:GetPlayers()) do
-            if (p.Name:lower():find(target:lower()) or p.DisplayName:lower():find(target:lower())) and p.Character then
+            if (p.Name:lower():find(targetPlayerInput:lower()) or p.DisplayName:lower():find(targetPlayerInput:lower())) and p.Character then
                 LocalPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame
                 break
             end
@@ -100,63 +155,65 @@ TeleportTab:AddButton({
     end
 })
 
-local Locations = {
-    ["Fisherman Island"] = Vector3.new(93.15, 9.53, 2684.58),
-    ["Kohana"] = Vector3.new(-602.72, 2.45, 547.14),
-    ["Ancient Jungle"] = Vector3.new(1467.85, 7.60, -327.60),
-    ["Coral Reefs"] = Vector3.new(-2922.90, 3.25, 2083.15),
-    ["Crystal Depth"] = Vector3.new(5716.35, -894.99, 15321.80)
-}
+Tabs.Teleport:Section({ Title = "World Teleport" })
+local islandNames = {}
+for name, _ in pairs(Islands) do table.insert(islandNames, name) end
+table.sort(islandNames)
 
-local locNames = {} for n, _ in pairs(Locations) do table.insert(locNames, n) end
-TeleportTab:AddDropdown({
-    Name = "World Locations",
-    Default = "",
-    Options = locNames,
-    Callback = function(Value)
-        if Locations[Value] then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Locations[Value] + Vector3.new(0, 5, 0))
+Tabs.Teleport:Dropdown({
+    Title = "Select Location",
+    Values = islandNames,
+    Callback = function(v)
+        if Islands[v] and LocalPlayer.Character then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Islands[v] + Vector3.new(0, 5, 0))
         end
     end
 })
 
--- [[ TAB WEBHOOK ]]
-local WebhookTab = Window:MakeTab({Name = "Webhook", Icon = "rbxassetid://4483345998"})
-WebhookTab:AddTextbox({
-    Name = "Webhook URL",
-    Default = "",
-    Callback = function(Value) 
-        getgenv().FlowConfig.WebhookURL = Value
-        if Value:match("https://") then
+-- [[ TAB: WEBHOOK ]]
+Tabs.Webhook:Section({ Title = "Webhook Setup" })
+Tabs.Webhook:Input({
+    Title = "Webhook URL (Press Enter)",
+    Placeholder = "https://discord.com/api/webhooks/...",
+    Callback = function(v)
+        getgenv().FlowConfig.WebhookURL = v
+        if v:match("https://discord.com/api/webhooks/") then
             sendWebhook({
                 ["embeds"] = {{
-                    ["title"] = "🔗 Webhook Connected Successfully!",
-                    ["color"] = 0x00B4D8,
-                    ["description"] = "**Webhook Holder:** `" .. LocalPlayer.Name .. "`\n**Active Filters:** `" .. getActiveFilters() .. "`",
-                    ["fields"] = {
-                        {["name"] = "🌐 Server Player Stats", ["value"] = getServerStats(), ["inline"] = false}
-                    },
-                    ["footer"] = {["text"] = "Flow Hub Alpha 1.0.6 | " .. os.date("%X")}
+                    ["title"] = "✅ Webhook: ON",
+                    ["color"] = 0x00FF00,
+                    ["description"] = "**Active Rarity:** `" .. getActiveFilters() .. "`\n\n**🌐 Active Players in Server:**\n" .. getServerStats(),
+                    ["footer"] = {["text"] = "Flow Hub Alpha 1.0.0 | JobID: " .. game.JobId}
                 }}
             })
+            WindUI:Notify({Title = "Webhook", Content = "Berhasil konek ke Discord!"})
         end
     end
 })
 
--- WEBHOOK LOGS: JOIN / LEAVE
+Tabs.Webhook:Section({ Title = "Rarity Filters" })
+local rarities = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Forgotten"}
+for _, rar in ipairs(rarities) do
+    Tabs.Webhook:Toggle({
+        Title = "Log " .. rar,
+        Default = getgenv().FlowConfig.Filters[rar],
+        Callback = function(v) getgenv().FlowConfig.Filters[rar] = v end
+    })
+end
+
+-- [[ CORE: SERVER MONITORING (JOIN/LEAVE & FISH) ]]
 Players.PlayerAdded:Connect(function(p)
-    sendWebhook({["embeds"] = {{["title"] = "📥 Player Joined", ["description"] = "**" .. p.Name .. "** entered.", ["color"] = 0x55FF55}}})
+    sendWebhook({["embeds"] = {{["title"] = "📥 Player Joined", ["description"] = "**" .. p.Name .. "** entered the server.", ["color"] = 0x55FF55}}})
 end)
 Players.PlayerRemoving:Connect(function(p)
-    sendWebhook({["embeds"] = {{["title"] = "📤 Player Left", ["description"] = "**" .. p.Name .. "** left.", ["color"] = 0xFF5555}}})
+    sendWebhook({["embeds"] = {{["title"] = "📤 Player Left", ["description"] = "**" .. p.Name .. "** left the server.", ["color"] = 0xFF5555}}})
 end)
 
--- WEBHOOK LOGS: FULL FISH DATA (MUTATION, WEIGHT, VALUE, ZONE)
 local function monitorPlayer(p)
-    local function setupChar(char)
+    local function hookCharacter(char)
         char.ChildAdded:Connect(function(item)
             if item:IsA("Tool") and not item.Name:lower():find("rod") then
-                task.wait(1.0) -- Tunggu atribut ke-load sempurna
+                task.wait(1) -- Beri waktu server untuk ngeload atribut
                 
                 local rarity = item:GetAttribute("Rarity") or item:GetAttribute("rarity") or "Common"
                 local rarityStr = tostring(rarity):sub(1,1):upper() .. tostring(rarity):sub(2):lower()
@@ -164,42 +221,42 @@ local function monitorPlayer(p)
                 if getgenv().FlowConfig.Filters[rarityStr] then
                     local mutation = item:GetAttribute("Mutation") or item:GetAttribute("mutation") or "None"
                     local weight = item:GetAttribute("Weight") or item:GetAttribute("weight") or 0
-                    local price = item:GetAttribute("Price") or item:GetAttribute("Value") or 0
-                    local zone = item:GetAttribute("Zone") or item:GetAttribute("Location") or "Unknown"
+                    local zone = getPlayerLocation(p)
+                    
+                    -- LOGIC SPECIAL NOTIFICATION (@here)
+                    local pingContent = nil
+                    if (item.Name == "Ruby" and mutation == "Gemstone") or rarityStr == "Forgotten" then
+                        pingContent = "@here 🚨 **SPECIAL CATCH DETECTED!** 🚨"
+                    end
 
                     sendWebhook({
+                        ["content"] = pingContent,
                         ["embeds"] = {{
-                            ["title"] = "🎣 Server Catch: " .. item.Name,
+                            ["title"] = "🎣 Server Catch Log",
                             ["color"] = 0x00B4D8,
+                            ["thumbnail"] = {["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId="..p.UserId.."&width=420&height=420&format=png"},
                             ["fields"] = {
-                                {["name"] = "👤 Player", ["value"] = "```"..p.Name.."```", ["inline"] = true},
+                                {["name"] = "🐟 Fish", ["value"] = "```"..item.Name.."```", ["inline"] = true},
                                 {["name"] = "✨ Rarity", ["value"] = "```"..rarityStr.."```", ["inline"] = true},
-                                {["name"] = "🧬 Mutation", ["value"] = "```"..tostring(mutation).."```", ["inline"] = true},
                                 {["name"] = "⚖️ Weight", ["value"] = "```"..string.format("%.2f", weight).." kg```", ["inline"] = true},
-                                {["name"] = "💰 Value", ["value"] = "```$"..tostring(price).."```", ["inline"] = true},
-                                {["name"] = "📍 Location", ["value"] = "```"..tostring(zone).."```", ["inline"] = true}
+                                {["name"] = "🧬 Mutation", ["value"] = "```"..tostring(mutation).."```", ["inline"] = true},
+                                {["name"] = "📍 Location", ["value"] = "```"..zone.."```", ["inline"] = true},
+                                {["name"] = "👤 Player", ["value"] = "```"..p.Name.."```", ["inline"] = true},
+                                {["name"] = "🖥️ JobID", ["value"] = "```"..game.JobId.."```", ["inline"] = false}
                             },
-                            ["footer"] = {["text"] = "Flow Hub Alpha 1.0.6 | " .. os.date("%X")}
+                            ["footer"] = {["text"] = "Flow Hub Alpha 1.0.0"}
                         }}
                     })
                 end
             end
         end)
     end
-    if p.Character then setupChar(p.Character) end
-    p.CharacterAdded:Connect(setupChar)
+    
+    if p.Character then hookCharacter(p.Character) end
+    p.CharacterAdded:Connect(hookCharacter)
 end
 
+-- Hook semua player yang udah ada di server
 for _, p in pairs(Players:GetPlayers()) do monitorPlayer(p) end
+-- Hook player yang baru masuk
 Players.PlayerAdded:Connect(monitorPlayer)
-
-local rarities = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Forgotten"}
-for _, rar in ipairs(rarities) do
-    WebhookTab:AddToggle({
-        Name = "Log " .. rar,
-        Default = getgenv().FlowConfig.Filters[rar],
-        Callback = function(Value) getgenv().FlowConfig.Filters[rar] = Value end
-    })
-end
-
-OrionLib:Init()
